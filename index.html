@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stok Takip Kroki</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Outfit for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- SIDEBAR (Admin / Settings) -->
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-gear"></i> Ayarlar</h2>
+            <button id="close-sidebar-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="sidebar-content">
+            <div class="setting-group">
+                <label for="kroki-upload" class="upload-btn">
+                    <i class="fa-solid fa-image"></i> Kroki Yükle (Galeri)
+                </label>
+                <input type="file" id="kroki-upload" accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="setting-group">
+                <h3>Mod Seçimi</h3>
+                <div class="mode-switch">
+                    <button id="mode-view" class="mode-btn active"><i class="fa-solid fa-eye"></i> İzleme</button>
+                    <button id="mode-draw" class="mode-btn"><i class="fa-solid fa-pen-nib"></i> Bölge Çiz</button>
+                </div>
+                <p id="draw-instructions" class="instructions hidden">Kroki üzerinde noktalara tıklayarak bir alan çizin. Çizimi bitirmek için son noktaya tekrar tıklayın.</p>
+            </div>
+
+            <div class="setting-group">
+                <button id="clear-data-btn" class="danger-btn"><i class="fa-solid fa-trash"></i> Tüm Verileri Sil</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN PAGE (Page 1) -->
+    <main id="page1" class="page active">
+        <header>
+            <div class="logo">
+                <h1>DEFACTO <span>STOK</span></h1>
+            </div>
+            <button id="open-sidebar-btn" class="icon-btn"><i class="fa-solid fa-bars"></i></button>
+        </header>
+        
+        <div class="kroki-container">
+            <div id="kroki-wrapper" class="kroki-wrapper">
+                <button id="zoom-out-btn" class="icon-btn hidden" style="position: absolute; top: 15px; left: 15px; z-index: 50; background-color: var(--surface-color);"><i class="fa-solid fa-arrow-left"></i></button>
+                <p id="no-image-text" class="placeholder-text">Lütfen ayarlardan bir kroki görseli yükleyin.</p>
+                <svg id="drawing-area" class="drawing-area hidden"></svg>
+            </div>
+        </div>
+    </main>
+
+    <!-- DETAIL PAGE (Page 2) -->
+    <section id="page2" class="page panel-page hidden">
+        <div class="panel-container">
+            <header class="panel-header">
+                <h2>Bölüm Detayları</h2>
+                <button id="close-page2-btn" class="icon-btn"><i class="fa-solid fa-arrow-left"></i> Geri</button>
+            </header>
+            <div class="panel-content">
+                <!-- Info View Mode -->
+                <div id="zone-info-view">
+                    <h3 id="display-zone-name" style="margin-bottom: 10px; font-size: 1.5rem;">Bölge Adı</h3>
+                    <div id="display-zone-items" class="zone-items-list" style="margin-bottom: 20px;">
+                        <!-- Dynamic items -->
+                    </div>
+                    <button id="edit-zone-btn" class="primary-btn"><i class="fa-solid fa-pen"></i> Düzenle</button>
+                    <button id="enter-zone-btn" class="primary-btn hidden" style="margin-top: 10px; background-color: #2196F3; color: white;"><i class="fa-solid fa-magnifying-glass-plus"></i> İçine Gir (Alt Bölgeler)</button>
+                    <button id="draw-subzone-btn" class="primary-btn hidden" style="margin-top: 10px; background-color: #4CAF50; color: white;"><i class="fa-solid fa-draw-polygon"></i> Bu Bölgenin İçine Çiz</button>
+                </div>
+
+                <!-- Edit Form Mode -->
+                <div id="zone-edit-form" class="hidden">
+                    <div class="input-group">
+                        <label for="zone-name">Bölüm Adı</label>
+                        <input type="text" id="zone-name" placeholder="Örn: Erkek Reyonu A1" autocomplete="off">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Özellikler (Parametreler)</label>
+                        <div id="dynamic-items-container">
+                            <!-- Dynamic inputs -->
+                        </div>
+                        <button id="add-item-btn" type="button" style="width: 100%; padding: 10px; border: 2px dashed var(--border-color); background: transparent; border-radius: var(--radius-md); margin-top: 10px; color: var(--text-muted); cursor: pointer;"><i class="fa-solid fa-plus"></i> Yeni Parametre Ekle</button>
+                    </div>
+                    
+                    <button id="save-zone-btn" class="primary-btn"><i class="fa-solid fa-save"></i> Kaydet</button>
+                    <button id="delete-zone-btn" class="danger-btn" style="margin-top: 15px;"><i class="fa-solid fa-trash-can"></i> Bu Bölgeyi Sil</button>
+                    <button id="cancel-edit-btn" class="icon-btn" style="width: 100%; border-radius: var(--radius-md); margin-top: 10px; background: var(--bg-color);"><i class="fa-solid fa-xmark"></i> İptal</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
