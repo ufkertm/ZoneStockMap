@@ -19,8 +19,12 @@
         </div>
         <div class="sidebar-content">
             <div class="setting-group">
-                <label for="kroki-upload" class="upload-btn">
-                    <i class="fa-solid fa-image"></i> Kroki Yükle (Galeri)
+                <h3>Krokiler / Katlar</h3>
+                <div id="floor-list" class="floor-list">
+                    <!-- Dinamik olarak katlar buraya eklenecek -->
+                </div>
+                <label for="kroki-upload" class="upload-btn" style="margin-top: 10px;">
+                    <i class="fa-solid fa-plus"></i> Yeni Kat Ekle
                 </label>
                 <input type="file" id="kroki-upload" accept="image/*" style="display: none;">
             </div>
@@ -35,6 +39,14 @@
             </div>
 
             <div class="setting-group">
+                <h3>Veri Yönetimi</h3>
+                <button id="export-json-btn" class="primary-btn" style="margin-bottom: 10px; background: #607D8B;"><i class="fa-solid fa-download"></i> Yedeği İndir (JSON)</button>
+                <label for="import-json-upload" class="upload-btn" style="margin-bottom: 10px;">
+                    <i class="fa-solid fa-upload"></i> Yedeği Yükle (JSON)
+                </label>
+                <input type="file" id="import-json-upload" accept=".json" style="display: none;">
+                <button id="export-csv-btn" class="primary-btn" style="background: #4CAF50; margin-bottom: 15px;"><i class="fa-solid fa-file-excel"></i> Excel (CSV) İndir</button>
+                
                 <button id="clear-data-btn" class="danger-btn"><i class="fa-solid fa-trash"></i> Tüm Verileri Sil</button>
             </div>
         </div>
@@ -46,13 +58,27 @@
             <div class="logo">
                 <h1>DEFACTO <span>STOK</span></h1>
             </div>
+            <div class="search-container" style="flex: 1; max-width: 400px; margin: 0 20px;">
+                <div style="position: relative;">
+                    <i class="fa-solid fa-search" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    <input type="text" id="search-input" placeholder="Bölge veya parametre ara..." style="width: 100%; padding: 10px 15px 10px 40px; border: 1px solid var(--border-color); border-radius: var(--radius-lg); font-size: 1rem; outline: none; background: var(--bg-color); transition: var(--transition);">
+                </div>
+            </div>
             <button id="open-sidebar-btn" class="icon-btn"><i class="fa-solid fa-bars"></i></button>
         </header>
         
-        <div class="kroki-container">
+        <div id="kroki-container" class="kroki-container">
+            <!-- Zoom Controls -->
+            <div class="zoom-controls">
+                <button id="zoom-in-btn" class="icon-btn" title="Yakınlaştır"><i class="fa-solid fa-plus"></i></button>
+                <button id="zoom-reset-btn" class="icon-btn" title="Sıfırla"><i class="fa-solid fa-expand"></i></button>
+                <button id="zoom-out-btn" class="icon-btn" title="Uzaklaştır"><i class="fa-solid fa-minus"></i></button>
+            </div>
+
             <div id="kroki-wrapper" class="kroki-wrapper">
-                <button id="zoom-out-btn" class="icon-btn hidden" style="position: absolute; top: 15px; left: 15px; z-index: 50; background-color: var(--surface-color);"><i class="fa-solid fa-arrow-left"></i></button>
-                <p id="no-image-text" class="placeholder-text">Lütfen ayarlardan bir kroki görseli yükleyin.</p>
+                <button id="back-to-parent-btn" class="icon-btn hidden" title="Geri Dön" style="position: absolute; top: 15px; left: 15px; z-index: 50; background-color: var(--surface-color);"><i class="fa-solid fa-arrow-left"></i></button>
+                <p id="no-image-text" class="placeholder-text">Lütfen yan menüden bir kat/kroki ekleyin.</p>
+                <img id="kroki-img" src="" alt="Kroki" class="hidden">
                 <svg id="drawing-area" class="drawing-area hidden"></svg>
             </div>
         </div>
@@ -83,7 +109,6 @@
                         <label for="zone-name">Bölüm Adı</label>
                         <input type="text" id="zone-name" placeholder="Örn: Erkek Reyonu A1" autocomplete="off">
                     </div>
-                    
                     <div class="input-group">
                         <label>Özellikler (Parametreler)</label>
                         <div id="dynamic-items-container">
@@ -99,6 +124,12 @@
             </div>
         </div>
     </section>
+
+    <!-- TOOLTIP -->
+    <div id="zone-tooltip" class="tooltip hidden">
+        <h4 id="tooltip-name" style="margin-bottom: 5px; font-size: 1.1rem;">Bölge Adı</h4>
+        <div id="tooltip-items" style="font-size: 0.9rem; color: #ddd;"></div>
+    </div>
 
     <script src="app.js"></script>
 </body>
