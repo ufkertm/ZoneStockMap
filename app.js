@@ -7,13 +7,17 @@ let appState = {
     currentDrawingPoints: [],
     selectedZoneId: null,
     zoom: 1,
-    pan: {x: 0, y: 0}
+    pan: { x: 0, y: 0 }
 };
 
 // Pan State
 let isPanning = false;
 let startPanX = 0;
 let startPanY = 0;
+
+// History State (Undo/Redo)
+let undoStack = [];
+let redoStack = [];
 
 // Colors
 const ZONE_COLORS = [
@@ -27,6 +31,11 @@ const sidebar = document.getElementById('sidebar');
 const openSidebarBtn = document.getElementById('open-sidebar-btn');
 const closeSidebarBtn = document.getElementById('close-sidebar-btn');
 
+const dashboardSidebar = document.getElementById('dashboard-sidebar');
+const openDashboardBtn = document.getElementById('open-dashboard-btn');
+const closeDashboardBtn = document.getElementById('close-dashboard-btn');
+const dashboardContent = document.getElementById('dashboard-content');
+
 const krokiUpload = document.getElementById('kroki-upload');
 const floorList = document.getElementById('floor-list');
 const noImageText = document.getElementById('no-image-text');
@@ -38,6 +47,9 @@ const backToParentBtn = document.getElementById('back-to-parent-btn');
 const zoomInBtn = document.getElementById('zoom-in-btn');
 const zoomOutBtn = document.getElementById('zoom-out-btn');
 const zoomResetBtn = document.getElementById('zoom-reset-btn');
+
+const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
 
 const modeViewBtn = document.getElementById('mode-view');
 const modeDrawBtn = document.getElementById('mode-draw');
@@ -64,10 +76,15 @@ const addItemBtn = document.getElementById('add-item-btn');
 const exportJsonBtn = document.getElementById('export-json-btn');
 const importJsonUpload = document.getElementById('import-json-upload');
 const exportCsvBtn = document.getElementById('export-csv-btn');
+const importCsvUpload = document.getElementById('import-csv-upload');
 const searchInput = document.getElementById('search-input');
 const zoneTooltip = document.getElementById('zone-tooltip');
 const tooltipName = document.getElementById('tooltip-name');
 const tooltipItems = document.getElementById('tooltip-items');
+
+const helpBtn = document.getElementById('help-btn');
+const helpModal = document.getElementById('help-modal');
+const closeHelpBtn = document.getElementById('close-help-btn');
 
 let currentSearchTerm = '';
 
@@ -129,8 +146,8 @@ function loadData() {
                         }
                     }
                 });
-            } catch(e) {}
-            
+            } catch (e) { }
+
             const defaultFloor = {
                 id: 'floor_' + Date.now(),
                 name: 'Varsayılan Kat',
@@ -157,30 +174,48 @@ function setupEventListeners() {
     openSidebarBtn.addEventListener('click', () => sidebar.classList.add('open'));
     closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
     
+    if (openDashboardBtn) {
+        openDashboardBtn.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            updateDashboard();
+            dashboardSidebar.classList.add('open');
+        });
+    }
+    if (closeDashboardBtn) {
+        closeDashboardBtn.addEventListener('click', () => {
+            dashboardSidebar.classList.remove('open');
+            sidebar.classList.add('open');
+        });
+    }
+
+    if (helpBtn) helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+    if (closeHelpBtn) closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+
     krokiUpload.addEventListener('change', handleImageUpload);
-    
+
     modeViewBtn.addEventListener('click', () => setMode('view'));
     modeDrawBtn.addEventListener('click', () => setMode('draw'));
-    
+
     drawingArea.addEventListener('click', handleDrawingAreaClick);
     drawingArea.addEventListener('mousemove', handleDrawingMouseMove);
-    
+
     closePage2Btn.addEventListener('click', closePage2);
     saveZoneBtn.addEventListener('click', saveZoneData);
     deleteZoneBtn.addEventListener('click', deleteCurrentZone);
-    
+
     if (addItemBtn) addItemBtn.addEventListener('click', () => addDynamicItemRow());
 
     if (exportJsonBtn) exportJsonBtn.addEventListener('click', handleExportJSON);
     if (importJsonUpload) importJsonUpload.addEventListener('change', handleImportJSON);
     if (exportCsvBtn) exportCsvBtn.addEventListener('click', handleExportCSV);
+    if (importCsvUpload) importCsvUpload.addEventListener('change', handleImportCSV);
     if (searchInput) searchInput.addEventListener('input', handleSearch);
 
     if (editZoneBtn) editZoneBtn.addEventListener('click', () => {
         zoneInfoView.classList.add('hidden');
         zoneEditForm.classList.remove('hidden');
     });
-    
+
     if (cancelEditBtn) cancelEditBtn.addEventListener('click', () => {
         zoneEditForm.classList.add('hidden');
         zoneInfoView.classList.remove('hidden');
@@ -202,12 +237,23 @@ function setupEventListeners() {
     if (backToParentBtn) backToParentBtn.addEventListener('click', () => {
         zoomOutToMain();
     });
-    
+
     clearDataBtn.addEventListener('click', () => {
-        if(confirm("Tüm kroki ve veriler silinecek. Emin misiniz?")) {
-            localStorage.clear();
-            location.reload();
-        }
+        Swal.fire({
+            title: 'Emin misiniz?',
+            text: "Tüm kroki ve veriler kalıcı olarak silinecek!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e53935',
+            cancelButtonColor: '#607D8B',
+            confirmButtonText: 'Evet, Sil!',
+            cancelButtonText: 'İptal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                localStorage.clear();
+                location.reload();
+            }
+        });
     });
 
     zoomInBtn.addEventListener('click', () => setZoom(appState.zoom + 0.2));
@@ -218,11 +264,69 @@ function setupEventListeners() {
         applyTransform(true);
     });
 
+    if (undoBtn) undoBtn.addEventListener('click', undo);
+    if (redoBtn) redoBtn.addEventListener('click', redo);
+
     krokiContainer.addEventListener('wheel', handleWheelZoom, { passive: false });
-    
+
+    // Hide tooltip when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#zone-tooltip')) {
+            hideTooltip();
+        }
+    });
+
+    // Vanilla Panning for mouse
     krokiContainer.addEventListener('pointerdown', handlePanStart);
     window.addEventListener('pointermove', handlePanMove);
     window.addEventListener('pointerup', handlePanEnd);
+
+    // Hammer.js for Tablet/Touch Support
+    if (typeof Hammer !== 'undefined') {
+        const mc = new Hammer.Manager(krokiContainer);
+        mc.add(new Hammer.Pan({ direction: Hammer.DIRECTION_ALL, threshold: 0 }));
+        mc.add(new Hammer.Pinch({ enable: true }));
+
+        let initialZoom = 1;
+        let initialPan = { x: 0, y: 0 };
+
+        mc.on('pinchstart', (e) => {
+            if (appState.mode !== 'view') return;
+            initialZoom = appState.zoom;
+        });
+
+        mc.on('pinch', (e) => {
+            if (appState.mode !== 'view') return;
+            appState.zoom = Math.max(0.1, Math.min(initialZoom * e.scale, 5));
+            applyTransform(false);
+        });
+
+        mc.on('panstart', (e) => {
+            if (appState.mode !== 'view') return;
+            initialPan = { x: appState.pan.x, y: appState.pan.y };
+        });
+
+        mc.on('panmove', (e) => {
+            if (appState.mode !== 'view') return;
+            // Only handle touch pan to avoid double handling with pointer events
+            if (e.pointerType === 'touch') {
+                appState.pan.x = initialPan.x + e.deltaX;
+                appState.pan.y = initialPan.y + e.deltaY;
+                applyTransform(false);
+            }
+        });
+    }
+
+    // Undo / Redo Hotkeys
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'z') {
+            e.preventDefault();
+            undo();
+        } else if (e.ctrlKey && (e.key === 'y' || (e.shiftKey && e.key === 'Z' || e.key === 'z'))) {
+            e.preventDefault();
+            redo();
+        }
+    });
 }
 
 function renderFloorList() {
@@ -230,23 +334,35 @@ function renderFloorList() {
     appState.floors.forEach(floor => {
         const item = document.createElement('div');
         item.className = 'floor-item' + (floor.id === appState.currentFloorId ? ' active' : '');
-        
+
         const nameSpan = document.createElement('span');
         nameSpan.className = 'floor-name';
         nameSpan.textContent = floor.name;
-        
+
         const delBtn = document.createElement('button');
         delBtn.className = 'icon-btn delete-floor-btn';
         delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
         delBtn.onclick = (e) => {
             e.stopPropagation();
-            if (confirm(`"${floor.name}" silinecek. Emin misiniz?`)) {
-                deleteFloor(floor.id);
-            }
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: `"${floor.name}" ve içindeki tüm veriler silinecek!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e53935',
+                cancelButtonColor: '#607D8B',
+                confirmButtonText: 'Evet, Sil!',
+                cancelButtonText: 'İptal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    saveStateToHistory();
+                    deleteFloor(floor.id);
+                }
+            });
         };
-        
+
         item.onclick = () => switchFloor(floor.id);
-        
+
         item.appendChild(nameSpan);
         item.appendChild(delBtn);
         floorList.appendChild(item);
@@ -260,14 +376,15 @@ function switchFloor(floorId) {
     appState.selectedZoneId = null;
     appState.currentDrawingPoints = [];
     appState.zoom = 1;
-    appState.pan = {x:0, y:0};
+    appState.pan = { x: 0, y: 0 };
     saveData();
-    
+
     renderFloorList();
     renderKroki();
     renderZones();
     applyTransform(true);
     closePage2();
+    if (dashboardSidebar && dashboardSidebar.classList.contains('open')) updateDashboard();
 }
 
 function deleteFloor(floorId) {
@@ -281,6 +398,7 @@ function deleteFloor(floorId) {
     renderKroki();
     renderZones();
     closePage2();
+    if (dashboardSidebar && dashboardSidebar.classList.contains('open')) updateDashboard();
 }
 
 function handleImageUpload(e) {
@@ -294,9 +412,10 @@ function handleImageUpload(e) {
     }
 
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = function (event) {
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
+            saveStateToHistory();
             const newFloor = {
                 id: 'floor_' + Date.now(),
                 name: floorName,
@@ -305,18 +424,19 @@ function handleImageUpload(e) {
                 imageHeight: img.height || 1000,
                 zones: []
             };
-            
+
             appState.floors.push(newFloor);
             appState.currentFloorId = newFloor.id;
             appState.currentParentId = null;
             appState.zoom = 1;
-            appState.pan = {x:0, y:0};
-            
+            appState.pan = { x: 0, y: 0 };
+
             saveData();
             renderFloorList();
             renderKroki();
             renderZones();
             applyTransform(true);
+            if (dashboardSidebar && dashboardSidebar.classList.contains('open')) updateDashboard();
             e.target.value = '';
         };
         img.src = event.target.result;
@@ -329,10 +449,10 @@ function renderKroki() {
     if (floor && floor.image) {
         drawingArea.classList.remove('hidden');
         noImageText.classList.add('hidden');
-        
+
         drawingArea.setAttribute('width', floor.imageWidth);
         drawingArea.setAttribute('height', floor.imageHeight);
-        
+
         if (appState.currentParentId === null) {
             drawingArea.setAttribute('viewBox', `0 0 ${floor.imageWidth} ${floor.imageHeight}`);
             backToParentBtn.classList.add('hidden');
@@ -351,13 +471,13 @@ function zoomIntoZone(zoneId) {
     if (!floor) return;
     const zone = floor.zones.find(z => z.id === zoneId);
     if (!zone) return;
-    
+
     appState.currentParentId = zoneId;
     appState.selectedZoneId = null;
-    
+
     const iW = floor.imageWidth;
     const iH = floor.imageHeight;
-    
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     zone.points.forEach(p => {
         const x = p.x * iW;
@@ -367,18 +487,18 @@ function zoomIntoZone(zoneId) {
         if (y < minY) minY = y;
         if (y > maxY) maxY = y;
     });
-    
+
     const padding = Math.max(iW, iH) * 0.05;
     minX -= padding;
     minY -= padding;
     maxX += padding;
     maxY += padding;
-    
+
     const boxWidth = maxX - minX;
     const boxHeight = maxY - minY;
-    
+
     drawingArea.setAttribute('viewBox', `${minX} ${minY} ${boxWidth} ${boxHeight}`);
-    
+
     backToParentBtn.classList.remove('hidden');
     closePage2();
     renderZones();
@@ -387,12 +507,12 @@ function zoomIntoZone(zoneId) {
 function zoomOutToMain() {
     appState.currentParentId = null;
     appState.selectedZoneId = null;
-    
+
     const floor = getCurrentFloor();
     if (floor) {
         drawingArea.setAttribute('viewBox', `0 0 ${floor.imageWidth} ${floor.imageHeight}`);
     }
-    
+
     backToParentBtn.classList.add('hidden');
     closePage2();
     renderZones();
@@ -401,7 +521,7 @@ function zoomOutToMain() {
 function setMode(mode) {
     appState.mode = mode;
     appState.currentDrawingPoints = [];
-    
+
     if (mode === 'view') {
         modeViewBtn.classList.add('active');
         modeDrawBtn.classList.remove('active');
@@ -417,7 +537,7 @@ function setMode(mode) {
         drawInstructions.classList.remove('hidden');
         closePage2();
     }
-    
+
     renderZones();
 }
 
@@ -430,7 +550,7 @@ function handleWheelZoom(e) {
     e.preventDefault();
     const zoomSensitivity = 0.001;
     const delta = -e.deltaY * zoomSensitivity;
-    
+
     const newZoom = Math.max(0.1, Math.min(appState.zoom * (1 + delta), 5));
     appState.zoom = newZoom;
     applyTransform(false);
@@ -439,14 +559,14 @@ function handleWheelZoom(e) {
 function applyTransform(smooth = false) {
     if (smooth) krokiWrapper.classList.add('smooth-transform');
     else krokiWrapper.classList.remove('smooth-transform');
-    
+
     krokiWrapper.style.transform = `translate(${appState.pan.x}px, ${appState.pan.y}px) scale(${appState.zoom})`;
 }
 
 function handlePanStart(e) {
     if (appState.mode !== 'view' && e.button !== 1) return;
     if (e.target.classList.contains('zone-polygon') && appState.mode === 'view') return;
-    
+
     isPanning = true;
     startPanX = e.clientX - appState.pan.x;
     startPanY = e.clientY - appState.pan.y;
@@ -475,13 +595,47 @@ function isPointInPolygon(point, vs) {
     return inside;
 }
 
-function handleDrawingAreaClick(e) {
-    if (appState.mode !== 'draw') return;
+function getSnappedPoint(pt) {
+    const floor = getCurrentFloor();
+    if (!floor || !floor.zones) return pt;
     
+    const iW = floor.imageWidth;
+    const iH = floor.imageHeight;
+    const thresholdPixels = 5; // Snapping threshold
+    
+    let closestPt = null;
+    let minDist = Infinity;
+    
+    const visibleZones = floor.zones.filter(z => z.parentId === appState.currentParentId);
+    
+    visibleZones.forEach(zone => {
+        zone.points.forEach(zp => {
+            const absX = zp.x * iW;
+            const absY = zp.y * iH;
+            
+            const dist = Math.hypot(pt.x - absX, pt.y - absY);
+            if (dist < minDist && dist <= thresholdPixels) {
+                minDist = dist;
+                closestPt = { x: absX, y: absY };
+            }
+        });
+    });
+    
+    return closestPt ? { x: closestPt.x / iW * iW, y: closestPt.y / iH * iH } : pt;
+}
+
+function handleDrawingAreaClick(e) {
+    if (appState.mode !== 'draw') {
+        hideTooltip();
+        return;
+    }
+
     const floor = getCurrentFloor();
     if (!floor) return;
 
-    const pt = getMousePosition(e);
+    let pt = getMousePosition(e);
+    pt = getSnappedPoint(pt); // Apply snapping
+
     const iW = floor.imageWidth;
     const iH = floor.imageHeight;
     const relPt = { x: pt.x / iW, y: pt.y / iH };
@@ -494,20 +648,21 @@ function handleDrawingAreaClick(e) {
     if (appState.currentDrawingPoints.length > 2) {
         const firstPt = appState.currentDrawingPoints[0];
         const dist = Math.hypot(pt.x - firstPt.x, pt.y - firstPt.y);
-        
+
         if (dist < 20) {
             finishDrawing();
             return;
         }
     }
-    
+
     appState.currentDrawingPoints.push(pt);
     renderZones();
 }
 
 function handleDrawingMouseMove(e) {
     if (appState.mode !== 'draw' || appState.currentDrawingPoints.length === 0) return;
-    const pt = getMousePosition(e);
+    let pt = getMousePosition(e);
+    pt = getSnappedPoint(pt); // Apply snapping
     renderZones(pt);
 }
 
@@ -516,22 +671,24 @@ function finishDrawing() {
         appState.currentDrawingPoints = [];
         return;
     }
-    
+
     const floor = getCurrentFloor();
     if (!floor) return;
 
     const iW = floor.imageWidth;
     const iH = floor.imageHeight;
-    
+
     const relativePoints = appState.currentDrawingPoints.map(p => ({
         x: p.x / iW,
         y: p.y / iH
     }));
 
+    saveStateToHistory();
+
     const isSubZone = appState.currentParentId !== null;
     let color = ZONE_COLORS[(floor.zones ? floor.zones.length : 0) % ZONE_COLORS.length];
     if (isSubZone) {
-        color = color.replace('0.4', '0.7'); 
+        color = color.replace('0.4', '0.7');
     }
 
     const newZone = {
@@ -542,14 +699,14 @@ function finishDrawing() {
         items: [],
         color: color
     };
-    
+
     if (!floor.zones) floor.zones = [];
     floor.zones.push(newZone);
-    
+
     appState.currentDrawingPoints = [];
     saveData();
     renderZones();
-    
+
     setMode('view');
     openPage2(newZone.id);
 }
@@ -564,13 +721,13 @@ function getMousePosition(evt) {
 
 function renderZones(currentMousePt = null) {
     drawingArea.innerHTML = '';
-    
+
     const floor = getCurrentFloor();
     if (!floor || !floor.image) return;
-    
+
     const iW = floor.imageWidth;
     const iH = floor.imageHeight;
-    
+
     // Draw background image
     const imgEl = document.createElementNS("http://www.w3.org/2000/svg", "image");
     imgEl.setAttribute('href', floor.image);
@@ -580,22 +737,22 @@ function renderZones(currentMousePt = null) {
     imgEl.setAttribute('y', '0');
     imgEl.style.pointerEvents = 'none';
     drawingArea.appendChild(imgEl);
-    
+
     const zones = floor.zones || [];
     const visibleZones = zones.filter(z => z.parentId === appState.currentParentId);
-    
+
     if (appState.currentParentId !== null) {
         const parentZone = zones.find(z => z.id === appState.currentParentId);
         if (parentZone) {
             const outerPath = `M0,0 L${iW},0 L${iW},${iH} L0,${iH} Z`;
-            const innerPath = parentZone.points.map((p, i) => `${i===0?'M':'L'}${p.x * iW},${p.y * iH}`).join(' ') + ' Z';
-            
+            const innerPath = parentZone.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x * iW},${p.y * iH}`).join(' ') + ' Z';
+
             const maskPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
             maskPath.setAttribute("d", `${outerPath} ${innerPath}`);
             maskPath.setAttribute("fill", "rgba(0, 0, 0, 0.75)");
             maskPath.setAttribute("fill-rule", "evenodd");
             drawingArea.appendChild(maskPath);
-            
+
             const parentPoly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
             const parentAbsPoints = parentZone.points.map(p => `${p.x * iW},${p.y * iH}`).join(' ');
             parentPoly.setAttribute("points", parentAbsPoints);
@@ -609,10 +766,10 @@ function renderZones(currentMousePt = null) {
 
     visibleZones.forEach(zone => {
         const absPoints = zone.points.map(p => `${p.x * iW},${p.y * iH}`).join(' ');
-        
+
         const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         polygon.setAttribute("points", absPoints);
-        
+
         const isMatch = isZoneMatchingSearch(zone, currentSearchTerm);
         let polyClass = "zone-polygon";
         if (appState.selectedZoneId === zone.id) polyClass += " selected";
@@ -620,66 +777,66 @@ function renderZones(currentMousePt = null) {
             if (isMatch) polyClass += " zone-highlight";
             else polyClass += " zone-dimmed";
         }
-        
+
         polygon.setAttribute("class", polyClass);
         polygon.style.fill = zone.color;
         polygon.style.strokeWidth = Math.max(2, iW * 0.002) + "px";
-        
-        polygon.addEventListener('pointerenter', (e) => {
-            if(appState.mode === 'view') showTooltip(e, zone);
-        });
-        polygon.addEventListener('pointerleave', () => hideTooltip());
-        polygon.addEventListener('pointermove', (e) => {
-            if(appState.mode === 'view') moveTooltip(e);
-        });
-        
+
         polygon.addEventListener('pointerdown', (e) => {
-            if(appState.mode === 'view') {
+            if (appState.mode === 'view') {
                 e.stopPropagation();
             }
         });
-        
-        polygon.addEventListener('click', (e) => {
-            if(appState.mode === 'view') {
+
+        polygon.addEventListener('dblclick', (e) => {
+            if (appState.mode === 'view') {
                 e.stopPropagation();
+                hideTooltip();
                 openPage2(zone.id);
             }
         });
-        
-        if(zone.name && appState.mode === 'view') {
+
+        polygon.addEventListener('click', (e) => {
+            if (appState.mode === 'view') {
+                e.stopPropagation();
+                showTooltip(e, zone);
+            }
+        });
+
+        if (zone.name && appState.mode === 'view') {
             const centerX = zone.points.reduce((sum, p) => sum + (p.x * iW), 0) / zone.points.length;
             const centerY = zone.points.reduce((sum, p) => sum + (p.y * iH), 0) / zone.points.length;
-            
+
             const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
             text.setAttribute("x", centerX);
             text.setAttribute("y", centerY);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("fill", "#000");
-            
-            const baseFontSize = appState.currentParentId === null ? (iW * 0.015) : (iW * 0.008); 
+
+            const baseFontSize = appState.currentParentId === null ? (iW * 0.015) : (iW * 0.008);
             text.setAttribute("font-size", `${baseFontSize}px`);
             text.setAttribute("font-weight", "bold");
             text.setAttribute("style", "pointer-events:none; text-shadow: 2px 2px 4px #fff, -2px -2px 4px #fff, 2px -2px 4px #fff, -2px 2px 4px #fff;");
             text.textContent = zone.name;
-            
+
             drawingArea.appendChild(polygon);
             drawingArea.appendChild(text);
         } else {
             drawingArea.appendChild(polygon);
         }
     });
-    
+
     if (appState.currentDrawingPoints.length > 0 && appState.mode === 'draw') {
         let pointsStr = appState.currentDrawingPoints.map(p => `${p.x},${p.y}`).join(' ');
         if (currentMousePt) pointsStr += ` ${currentMousePt.x},${currentMousePt.y}`;
-        
+
         const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
         polyline.setAttribute("points", pointsStr);
         polyline.setAttribute("class", "drawing-line");
         polyline.setAttribute("fill", "rgba(0,0,0,0.1)");
         polyline.style.strokeWidth = Math.max(2, iW * 0.002) + "px";
         drawingArea.appendChild(polyline);
-        
+
         appState.currentDrawingPoints.forEach((p, idx) => {
             const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
             circle.setAttribute("cx", p.x);
@@ -697,11 +854,11 @@ function openPage2(zoneId) {
     const floor = getCurrentFloor();
     if (!floor) return;
     const zone = (floor.zones || []).find(z => z.id === zoneId);
-    
+
     if (zone) {
         zoneNameInput.value = zone.name || '';
         if (displayZoneName) displayZoneName.textContent = zone.name || 'İsimsiz Bölge';
-        
+
         if (displayZoneItems) {
             displayZoneItems.innerHTML = '';
             if (zone.items && zone.items.length > 0) {
@@ -736,10 +893,10 @@ function openPage2(zoneId) {
                 addDynamicItemRow();
             }
         }
-        
+
         if (zoneInfoView) zoneInfoView.classList.remove('hidden');
         if (zoneEditForm) zoneEditForm.classList.add('hidden');
-        
+
         if (!zone.name && zoneEditForm) {
             zoneInfoView.classList.add('hidden');
             zoneEditForm.classList.remove('hidden');
@@ -754,29 +911,29 @@ function openPage2(zoneId) {
 function addDynamicItemRow(name = '', value = '') {
     const row = document.createElement('div');
     row.className = 'dynamic-item-row';
-    
+
     const nameInput = document.createElement('input');
     nameInput.type = 'text';
     nameInput.placeholder = 'Örn: Mont';
     nameInput.value = name;
     nameInput.className = 'dyn-item-name';
-    
+
     const valInput = document.createElement('input');
     valInput.type = 'text';
     valInput.placeholder = 'Değer';
     valInput.value = value;
     valInput.className = 'dyn-item-val';
-    
+
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'remove-item-btn';
     removeBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
     removeBtn.onclick = () => row.remove();
-    
+
     row.appendChild(nameInput);
     row.appendChild(valInput);
     row.appendChild(removeBtn);
-    
+
     dynamicItemsContainer.appendChild(row);
 }
 
@@ -793,11 +950,12 @@ function saveZoneData() {
     if (!appState.selectedZoneId) return;
     const floor = getCurrentFloor();
     if (!floor || !floor.zones) return;
-    
+
     const zoneIndex = floor.zones.findIndex(z => z.id === appState.selectedZoneId);
     if (zoneIndex !== -1) {
+        saveStateToHistory();
         floor.zones[zoneIndex].name = zoneNameInput.value;
-        
+
         const rows = dynamicItemsContainer.querySelectorAll('.dynamic-item-row');
         const newItems = [];
         rows.forEach(row => {
@@ -807,10 +965,10 @@ function saveZoneData() {
                 newItems.push({ name: name, value: val });
             }
         });
-        
+
         floor.zones[zoneIndex].items = newItems;
         delete floor.zones[zoneIndex].stock;
-        
+
         saveData();
         closePage2();
     }
@@ -820,13 +978,25 @@ function deleteCurrentZone() {
     if (!appState.selectedZoneId) return;
     const floor = getCurrentFloor();
     if (!floor || !floor.zones) return;
-    
-    if(confirm("Bu bölgeyi silmek istediğinize emin misiniz? (Alt bölgeler de silinecektir)")) {
-        const idToDelete = appState.selectedZoneId;
-        floor.zones = floor.zones.filter(z => z.id !== idToDelete && z.parentId !== idToDelete);
-        saveData();
-        closePage2();
-    }
+
+    Swal.fire({
+        title: 'Bölgeyi Sil',
+        text: "Bu bölgeyi silmek istediğinize emin misiniz? (Alt bölgeler de silinecektir)",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e53935',
+        cancelButtonColor: '#607D8B',
+        confirmButtonText: 'Evet, Sil!',
+        cancelButtonText: 'İptal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            saveStateToHistory();
+            const idToDelete = appState.selectedZoneId;
+            floor.zones = floor.zones.filter(z => z.id !== idToDelete && z.parentId !== idToDelete);
+            saveData();
+            closePage2();
+        }
+    });
 }
 
 // --- NEW ADVANCED FEATURES ---
@@ -841,7 +1011,7 @@ function isZoneMatchingSearch(zone, term) {
     if (zone.name && zone.name.toLowerCase().includes(term)) return true;
     if (zone.items && zone.items.length > 0) {
         for (let item of zone.items) {
-            if ((item.name && item.name.toLowerCase().includes(term)) || 
+            if ((item.name && item.name.toLowerCase().includes(term)) ||
                 (item.value && item.value.toLowerCase().includes(term))) {
                 return true;
             }
@@ -854,7 +1024,7 @@ function showTooltip(e, zone) {
     if (!zone.name && (!zone.items || zone.items.length === 0)) return;
     if (zoneTooltip) {
         tooltipName.textContent = zone.name || 'İsimsiz Bölge';
-        
+
         let itemsHtml = '';
         if (zone.items && zone.items.length > 0) {
             zone.items.forEach(item => {
@@ -864,7 +1034,7 @@ function showTooltip(e, zone) {
             itemsHtml = '<em style="color:var(--text-muted);">Parametre yok</em>';
         }
         tooltipItems.innerHTML = itemsHtml;
-        
+
         zoneTooltip.classList.remove('hidden');
         moveTooltip(e);
     }
@@ -892,25 +1062,37 @@ function handleExportJSON() {
 function handleImportJSON(e) {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = function (event) {
         try {
             const importedData = JSON.parse(event.target.result);
             if (Array.isArray(importedData)) {
-                if (confirm("Mevcut tüm veriler silinip yedek yüklenecek. Emin misiniz?")) {
-                    appState.floors = importedData;
-                    appState.currentFloorId = importedData.length > 0 ? importedData[0].id : null;
-                    appState.currentParentId = null;
-                    appState.selectedZoneId = null;
-                    saveData();
-                    location.reload();
-                }
+                Swal.fire({
+                    title: 'Yedek Yükle',
+                    text: "Mevcut tüm veriler silinip yedek yüklenecek. Emin misiniz?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#e53935',
+                    cancelButtonColor: '#607D8B',
+                    confirmButtonText: 'Evet, Yükle!',
+                    cancelButtonText: 'İptal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        saveStateToHistory();
+                        appState.floors = importedData;
+                        appState.currentFloorId = importedData.length > 0 ? importedData[0].id : null;
+                        appState.currentParentId = null;
+                        appState.selectedZoneId = null;
+                        saveData();
+                        location.reload();
+                    }
+                });
             } else {
-                alert("Geçersiz yedek dosyası (Liste bekleniyor)!");
+                Swal.fire('Hata!', 'Geçersiz yedek dosyası (Liste bekleniyor)!', 'error');
             }
-        } catch(err) {
-            alert("Dosya okunamadı veya JSON formatı hatalı!");
+        } catch (err) {
+            Swal.fire('Hata!', 'Dosya okunamadı veya JSON formatı hatalı!', 'error');
         }
         e.target.value = '';
     };
@@ -918,16 +1100,26 @@ function handleImportJSON(e) {
 }
 
 function handleExportCSV() {
-    let csvContent = "\uFEFFKat Adı,Üst Bölge,Bölge Adı,Özellik Adı,Özellik Değeri\n"; // UTF-8 BOM
-    
+    let hasZones = false;
+    appState.floors.forEach(floor => {
+        if (floor.zones && floor.zones.length > 0) hasZones = true;
+    });
+
+    if (!hasZones) {
+        alert("Şablon oluşturabilmek için en az 1 bölge çizilmiş olması gerekmektedir. Lütfen önce kroki üzerinden bölgelerinizi çizin.");
+        return;
+    }
+
+    let csvContent = "\uFEFFKat Adı;Üst Bölge;Bölge Adı;Özellik Adı;Özellik Değeri\n"; // UTF-8 BOM
+
     appState.floors.forEach(floor => {
         const fName = `"${(floor.name || '').replace(/"/g, '""')}"`;
-        
+
         if (!floor.zones || floor.zones.length === 0) return;
-        
+
         floor.zones.forEach(zone => {
             const zName = zone.name ? `"${zone.name.replace(/"/g, '""')}"` : '"İsimsiz Bölge"';
-            
+
             let pName = '"-"';
             if (zone.parentId) {
                 const parent = floor.zones.find(z => z.id === zone.parentId);
@@ -935,25 +1127,250 @@ function handleExportCSV() {
                     pName = `"${parent.name.replace(/"/g, '""')}"`;
                 }
             }
-            
+
             if (zone.items && zone.items.length > 0) {
                 zone.items.forEach(item => {
                     const iName = item.name ? `"${item.name.replace(/"/g, '""')}"` : '""';
                     const iVal = item.value ? `"${item.value.replace(/"/g, '""')}"` : '""';
-                    csvContent += `${fName},${pName},${zName},${iName},${iVal}\n`;
+                    csvContent += `${fName};${pName};${zName};${iName};${iVal}\n`;
                 });
             } else {
-                csvContent += `${fName},${pName},${zName},"",""\n`;
+                csvContent += `${fName};${pName};${zName};"";""\n`;
             }
         });
     });
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", url);
     dlAnchorElem.setAttribute("download", "stok_raporu.csv");
     dlAnchorElem.click();
+}
+
+function handleImportCSV(e) {
+    let hasZones = false;
+    appState.floors.forEach(floor => {
+        if (floor.zones && floor.zones.length > 0) hasZones = true;
+    });
+
+    if (!hasZones) {
+        alert("Veri içe aktarabilmek için krokide en az 1 bölge çizilmiş olmalıdır. Lütfen önce bölgelerinizi çizin.");
+        e.target.value = '';
+        return;
+    }
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        try {
+            const csvText = event.target.result;
+            const rows = parseCSV(csvText);
+
+            if (rows.length === 0) {
+                alert("Geçerli veri bulunamadı veya dosya boş.");
+                return;
+            }
+
+            // Organize data by Floor Name -> Zone Name -> Items
+            const importData = {};
+
+            rows.forEach(row => {
+                const fName = row.floorName;
+                // If the exported data has empty floor/zone, we skip
+                if (!fName || !row.zoneName) return;
+
+                const zName = row.zoneName;
+                const pName = row.parentZoneName;
+
+                if (!importData[fName]) importData[fName] = {};
+
+                // Create a unique key for the zone, considering parent name to avoid collisions if names are same
+                const zoneKey = pName ? `${pName}::${zName}` : zName;
+
+                if (!importData[fName][zoneKey]) {
+                    importData[fName][zoneKey] = {
+                        parentName: pName,
+                        zoneName: zName,
+                        items: []
+                    };
+                }
+
+                if (row.itemName || row.itemValue) {
+                    importData[fName][zoneKey].items.push({
+                        name: row.itemName || '',
+                        value: row.itemValue || ''
+                    });
+                }
+            });
+
+            // Now update appState.floors
+            let updateCount = 0;
+
+            appState.floors.forEach(floor => {
+                const fName = floor.name || '';
+                if (importData[fName] && floor.zones) {
+                    floor.zones.forEach(zone => {
+                        const zName = zone.name || 'İsimsiz Bölge';
+
+                        let pName = null;
+                        if (zone.parentId) {
+                            const parent = floor.zones.find(z => z.id === zone.parentId);
+                            if (parent && parent.name) pName = parent.name;
+                        }
+
+                        const zoneKey = pName ? `${pName}::${zName}` : zName;
+
+                        if (importData[fName][zoneKey]) {
+                            // Update the items
+                            zone.items = importData[fName][zoneKey].items;
+                            updateCount++;
+                        }
+                    });
+                }
+            });
+
+            saveStateToHistory();
+            saveData();
+            renderZones();
+            closePage2();
+
+            Swal.fire('Başarılı', `${updateCount} bölge verisi güncellendi!`, 'success');
+
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Hata', 'Dosya okunurken bir hata oluştu. Lütfen formatı kontrol edin.', 'error');
+        }
+        e.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+function parseCSV(text) {
+    const lines = text.split(/\r?\n/);
+    const result = [];
+
+    // Excel in Turkey uses ';' as delimiter usually
+    let delimiter = ',';
+    if (lines.length > 0 && lines[0].indexOf(';') > -1) {
+        delimiter = ';';
+    }
+    const regex = delimiter === ';' ? /;(?=(?:(?:[^"]*"){2})*[^"]*$)/ : /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
+    // Check if there is a header. We skip the first row usually.
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Match comma/semicolon separated values, considering quotes
+        const row = line.split(regex).map(cell => {
+            cell = cell.trim();
+            if (cell.startsWith('"') && cell.endsWith('"')) {
+                cell = cell.substring(1, cell.length - 1).replace(/""/g, '"');
+            }
+            return cell;
+        });
+
+        if (row.length >= 5) {
+            result.push({
+                floorName: row[0] === '-' ? null : row[0],
+                parentZoneName: row[1] === '-' ? null : row[1],
+                zoneName: row[2] === '-' ? null : row[2],
+                itemName: row[3] === '-' ? null : row[3],
+                itemValue: row[4] === '-' ? null : row[4]
+            });
+        }
+    }
+    return result;
+}
+
+// --- UNDO / REDO LOGIC ---
+function saveStateToHistory() {
+    if (undoStack.length > 50) undoStack.shift();
+    undoStack.push(JSON.stringify(appState.floors));
+    redoStack = [];
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(JSON.stringify(appState.floors));
+    appState.floors = JSON.parse(undoStack.pop());
+    saveData();
+    renderFloorList();
+    renderKroki();
+    renderZones();
+    if (dashboardSidebar && dashboardSidebar.classList.contains('open')) updateDashboard();
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(JSON.stringify(appState.floors));
+    appState.floors = JSON.parse(redoStack.pop());
+    saveData();
+    renderFloorList();
+    renderKroki();
+    renderZones();
+    if (dashboardSidebar && dashboardSidebar.classList.contains('open')) updateDashboard();
+}
+
+// --- DASHBOARD LOGIC ---
+function updateDashboard() {
+    if (!dashboardContent) return;
+    
+    let totalFloors = appState.floors.length;
+    let totalZones = 0;
+    let totalStock = 0;
+    let totalItems = 0;
+    
+    appState.floors.forEach(floor => {
+        if (floor.zones) {
+            totalZones += floor.zones.length;
+            floor.zones.forEach(zone => {
+                if (zone.items) {
+                    totalItems += zone.items.length;
+                    zone.items.forEach(item => {
+                        const val = parseFloat(item.value);
+                        if (!isNaN(val)) {
+                            totalStock += val;
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    dashboardContent.innerHTML = `
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="stat-info">
+                <div class="stat-title">Toplam Kat/Kroki</div>
+                <div class="stat-value">${totalFloors}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-draw-polygon"></i></div>
+            <div class="stat-info">
+                <div class="stat-title">Toplam Bölge</div>
+                <div class="stat-value">${totalZones}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="stat-info">
+                <div class="stat-title">Toplam Stok Miktarı</div>
+                <div class="stat-value">${totalStock}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-list-check"></i></div>
+            <div class="stat-info">
+                <div class="stat-title">Toplam Parametre</div>
+                <div class="stat-value">${totalItems}</div>
+            </div>
+        </div>
+    `;
 }
 
 window.onload = init;

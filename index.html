@@ -18,6 +18,10 @@
             <button id="close-sidebar-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="sidebar-content">
+            <div class="setting-group" style="margin-bottom: 20px;">
+                <button id="open-dashboard-btn" class="primary-btn" style="background: #FF9800; color: white;"><i class="fa-solid fa-chart-pie"></i> İstatistik Panosu</button>
+            </div>
+            
             <div class="setting-group">
                 <h3>Krokiler / Katlar</h3>
                 <div id="floor-list" class="floor-list">
@@ -45,9 +49,27 @@
                     <i class="fa-solid fa-upload"></i> Yedeği Yükle (JSON)
                 </label>
                 <input type="file" id="import-json-upload" accept=".json" style="display: none;">
-                <button id="export-csv-btn" class="primary-btn" style="background: #4CAF50; margin-bottom: 15px;"><i class="fa-solid fa-file-excel"></i> Excel (CSV) İndir</button>
+                <button id="export-csv-btn" class="primary-btn" style="background: #4CAF50; margin-bottom: 10px;"><i class="fa-solid fa-file-excel"></i> Excel (CSV) Şablon İndir</button>
+                <label for="import-csv-upload" class="upload-btn" style="margin-bottom: 15px; border-color: #4CAF50; color: #2E7D32; background: rgba(76, 175, 80, 0.05);">
+                    <i class="fa-solid fa-file-import"></i> Excel'den Veri İçe Aktar
+                </label>
+                <input type="file" id="import-csv-upload" accept=".csv" style="display: none;">
                 
                 <button id="clear-data-btn" class="danger-btn"><i class="fa-solid fa-trash"></i> Tüm Verileri Sil</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- DASHBOARD PANEL -->
+    <nav id="dashboard-sidebar" class="sidebar" style="position: absolute; left: 0; z-index: 105;">
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-chart-pie"></i> İstatistikler</h2>
+            <button id="close-dashboard-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="sidebar-content" id="dashboard-content">
+            <!-- Dynamic stats will go here -->
+            <div style="text-align:center; padding: 20px; color: var(--text-muted);">
+                Veriler hesaplanıyor...
             </div>
         </div>
     </nav>
@@ -55,8 +77,11 @@
     <!-- MAIN PAGE (Page 1) -->
     <main id="page1" class="page active">
         <header>
-            <div class="logo">
-                <h1>DEFACTO <span>STOK</span></h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="open-sidebar-btn" class="icon-btn"><i class="fa-solid fa-bars"></i></button>
+                <div class="logo">
+                    <h1>DEFACTO <span>STOK</span></h1>
+                </div>
             </div>
             <div class="search-container" style="flex: 1; max-width: 400px; margin: 0 20px;">
                 <div style="position: relative;">
@@ -64,10 +89,16 @@
                     <input type="text" id="search-input" placeholder="Bölge veya parametre ara..." style="width: 100%; padding: 10px 15px 10px 40px; border: 1px solid var(--border-color); border-radius: var(--radius-lg); font-size: 1rem; outline: none; background: var(--bg-color); transition: var(--transition);">
                 </div>
             </div>
-            <button id="open-sidebar-btn" class="icon-btn"><i class="fa-solid fa-bars"></i></button>
+            <button id="help-btn" class="icon-btn" title="Nasıl Kullanılır?"><i class="fa-solid fa-question"></i></button>
         </header>
         
         <div id="kroki-container" class="kroki-container">
+            <!-- History Controls (Undo/Redo) -->
+            <div class="history-controls" style="position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 50;">
+                <button id="undo-btn" class="icon-btn" title="Geri Al"><i class="fa-solid fa-rotate-left"></i></button>
+                <button id="redo-btn" class="icon-btn" title="İleri Al"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+
             <!-- Zoom Controls -->
             <div class="zoom-controls">
                 <button id="zoom-in-btn" class="icon-btn" title="Yakınlaştır"><i class="fa-solid fa-plus"></i></button>
@@ -131,6 +162,27 @@
         <div id="tooltip-items" style="font-size: 0.9rem; color: #ddd;"></div>
     </div>
 
+    <!-- HELP MODAL -->
+    <div id="help-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nasıl Kullanılır?</h2>
+                <button id="close-help-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <ol>
+                    <li><strong>Kroki Ekleme:</strong> Sol üstteki menü butonuna (<i class="fa-solid fa-bars"></i>) tıklayın ve "Yeni Kat Ekle" diyerek mağaza krokinizi (resim olarak) yükleyin.</li>
+                    <li><strong>Bölge Çizme:</strong> Menüden "Bölge Çiz" modunu seçin. Kroki üzerinde köşelere tıklayarak bölgenizi belirleyin. Çizimi bitirmek için ilk noktaya tekrar tıklayın.</li>
+                    <li><strong>Bölge İsimlendirme:</strong> Çizimi bitirdiğinizde sağ tarafta açılan panelden bölgeye isim (Örn: Erkek Reyonu) ve özellikler (Örn: Kazak, 50 adet) ekleyebilirsiniz.</li>
+                    <li><strong>Alt Bölge Çizme:</strong> Bir bölgenin içine girerek (İçine Gir butonu ile) o bölgeye özel daha küçük alt bölgeler (Örn: Raf 1, Raf 2) çizebilirsiniz.</li>
+                    <li><strong>Toplu Veri Ekleme:</strong> Menüden "Excel (CSV) Şablon İndir" ile güncel yapıyı indirin. Excel'de verilerinizi doldurduktan sonra "Excel'den Veri İçe Aktar" diyerek tüm verileri tek seferde sisteme yükleyebilirsiniz.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
