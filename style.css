@@ -638,3 +638,195 @@ header {
 .modal-body li {
     margin-bottom: 15px;
 }
+
+/* --- NEW MODULES --- */
+/* LOGIN OVERLAY */
+.login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+.login-overlay.hidden { display: none !important; }
+.login-box {
+    background: var(--surface-color);
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+.login-box h2 {
+    margin-bottom: 30px;
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+.login-box h2 span { font-weight: 300; }
+.login-box .input-group { text-align: left; }
+.error-text { color: var(--danger-color); font-size: 0.9rem; margin-top: 10px; font-weight: 600; }
+
+/* HUB SCREEN */
+.hub-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+}
+.hub-screen.hidden { display: none !important; }
+.hub-header { text-align: center; margin-bottom: 50px; }
+.hub-header h2 { font-size: 2.5rem; margin-bottom: 10px; }
+.hub-header p { color: var(--text-muted); font-size: 1.1rem; }
+.hub-cards {
+    display: flex;
+    gap: 30px;
+    width: 90%;
+    max-width: 900px;
+}
+.hub-card {
+    flex: 1;
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    padding: 50px 30px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition);
+    border: 2px solid transparent;
+}
+.hub-card:hover {
+    transform: translateY(-10px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--accent-color);
+}
+.hub-card i {
+    font-size: 4rem;
+    color: var(--accent-color);
+    margin-bottom: 20px;
+}
+.hub-card h3 { font-size: 1.5rem; margin-bottom: 15px; }
+.hub-card p { color: var(--text-muted); }
+
+/* PRINT SECTION */
+#print-section {
+    width: 100vw;
+    height: 100vh;
+}
+.print-template {
+    width: 210mm; /* A4 width */
+    height: 297mm; /* A4 height */
+    padding: 20px;
+    background: white;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    transform: scale(0.6); /* Preview scale */
+    transform-origin: top center;
+}
+
+/* Fiyatlık Template Styles */
+#template-fiyatlik .fiyat-container {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+#template-fiyatlik .fiyat-tam {
+    font-size: 280px; /* Big number */
+    font-weight: 800;
+    line-height: 0.8;
+    letter-spacing: -15px;
+    color: #1a1a1a;
+}
+#template-fiyatlik .fiyat-sag {
+    display: flex;
+    flex-direction: column;
+    margin-left: 15px;
+}
+#template-fiyatlik .fiyat-kurus {
+    font-size: 90px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -3px;
+    color: #1a1a1a;
+}
+#template-fiyatlik .fiyat-para {
+    font-size: 60px;
+    font-weight: 600;
+    line-height: 1;
+    color: #1a1a1a;
+    margin-top: -10px;
+    margin-left: 5px;
+}
+#template-fiyatlik .fiyat-alt-yazi {
+    font-size: 26px;
+    font-weight: 500;
+    color: #1a1a1a;
+    text-align: center;
+    letter-spacing: 1px;
+    margin-top: 20px;
+}
+
+/* MEDIA PRINT */
+@media print {
+    body {
+        visibility: hidden;
+        background: white;
+    }
+    #print-section, #print-section * {
+        visibility: hidden;
+    }
+    .print-preview-wrapper {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        overflow: visible !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    .print-preview-area {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .print-template:not(.hidden) {
+        visibility: visible !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform: scale(1) !important; /* Reset scale for actual printing */
+        width: 210mm !important;
+        height: 297mm !important;
+        page-break-after: always;
+        margin: 0 !important;
+        border: none !important;
+    }
+    .print-template:not(.hidden) * {
+        visibility: visible !important;
+    }
+}

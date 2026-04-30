@@ -11,6 +11,43 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="login-overlay active">
+        <div class="login-box">
+            <h2>DEFACTO <span>SİSTEM GİRİŞİ</span></h2>
+            <div class="input-group">
+                <label for="login-username">Kullanıcı Adı</label>
+                <input type="text" id="login-username" placeholder="Kullanıcı Adı" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label for="login-password">Şifre</label>
+                <input type="password" id="login-password" placeholder="Şifre" autocomplete="off">
+            </div>
+            <p id="login-error" class="error-text hidden">Kullanıcı adı veya şifre hatalı!</p>
+            <button id="login-btn" class="primary-btn" style="width: 100%; margin-top: 15px;">Giriş Yap</button>
+        </div>
+    </div>
+
+    <!-- HUB (SELECTION) SCREEN -->
+    <div id="hub-screen" class="hub-screen hidden">
+        <div class="hub-header">
+            <h2>Hoş Geldiniz, <span style="color: var(--primary-color);">kiyakabi</span></h2>
+            <p>Lütfen yapmak istediğiniz işlemi seçin.</p>
+        </div>
+        <div class="hub-cards">
+            <div class="hub-card" id="hub-stock-btn">
+                <i class="fa-solid fa-map-location-dot"></i>
+                <h3>Stok Görüntüleme</h3>
+                <p>Mağaza krokinizi yönetin ve stok verilerini inceleyin.</p>
+            </div>
+            <div class="hub-card" id="hub-print-btn">
+                <i class="fa-solid fa-print"></i>
+                <h3>Etiket ve Çıktı Alma</h3>
+                <p>Fiyatlık, barkod ve etiket şablonları oluşturup yazdırın.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- SIDEBAR (Admin / Settings) -->
     <nav id="sidebar" class="sidebar">
         <div class="sidebar-header">
@@ -75,9 +112,10 @@
     </nav>
 
     <!-- MAIN PAGE (Page 1) -->
-    <main id="page1" class="page active">
+    <main id="page1" class="page hidden">
         <header>
             <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="back-to-hub-stock-btn" class="icon-btn" title="Ana Menüye Dön"><i class="fa-solid fa-house"></i></button>
                 <button id="open-sidebar-btn" class="icon-btn"><i class="fa-solid fa-bars"></i></button>
                 <div class="logo">
                     <h1>DEFACTO <span>STOK</span></h1>
@@ -151,6 +189,64 @@
                     <button id="save-zone-btn" class="primary-btn"><i class="fa-solid fa-save"></i> Kaydet</button>
                     <button id="delete-zone-btn" class="danger-btn" style="margin-top: 15px;"><i class="fa-solid fa-trash-can"></i> Bu Bölgeyi Sil</button>
                     <button id="cancel-edit-btn" class="icon-btn" style="width: 100%; border-radius: var(--radius-md); margin-top: 10px; background: var(--bg-color);"><i class="fa-solid fa-xmark"></i> İptal</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRINT SECTION -->
+    <section id="print-section" class="page hidden">
+        <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: var(--surface-color); border-bottom: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="back-to-hub-print-btn" class="icon-btn" title="Ana Menüye Dön"><i class="fa-solid fa-house"></i></button>
+                <h2 style="margin: 0; font-size: 1.2rem;">Etiket ve Çıktı Alma</h2>
+            </div>
+        </header>
+
+        <div class="print-container" style="display: flex; height: calc(100vh - 60px);">
+            <!-- Print Form Area -->
+            <div class="print-sidebar" style="width: 350px; padding: 20px; background: var(--surface-color); border-right: 1px solid var(--border-color); overflow-y: auto;">
+                <h3>Şablon Ayarları</h3>
+                
+                <div class="input-group" style="margin-top: 20px;">
+                    <label for="template-select">Şablon Seçimi</label>
+                    <select id="template-select" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-color); outline: none;">
+                        <option value="fiyatlik">Fiyatlık</option>
+                        <option value="placeholder1">Barkod (Yer Tutucu)</option>
+                        <option value="placeholder2">Ürün Bilgi (Yer Tutucu)</option>
+                    </select>
+                </div>
+
+                <div id="fiyatlik-form" style="margin-top: 20px;">
+                    <div class="input-group">
+                        <label for="price-input">Fiyat Giriniz (Örn: 120.99 veya 120,99)</label>
+                        <input type="text" id="price-input" placeholder="120.99" autocomplete="off" value="129.99">
+                    </div>
+                </div>
+
+                <button id="print-btn" class="primary-btn" style="width: 100%; margin-top: 30px; font-size: 1.1rem; padding: 15px;"><i class="fa-solid fa-print"></i> Çıktı Al</button>
+            </div>
+
+            <!-- Print Preview Area -->
+            <div class="print-preview-wrapper" style="flex: 1; background: #e0e0e0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px;">
+                <div id="print-preview-area" class="print-preview-area" style="background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                    
+                    <!-- Fiyatlık Template -->
+                    <div id="template-fiyatlik" class="print-template">
+                        <div class="fiyat-container">
+                            <span id="preview-tam" class="fiyat-tam">129</span>
+                            <div class="fiyat-sag">
+                                <span id="preview-kurus" class="fiyat-kurus">,99</span><span class="fiyat-para">TL</span>
+                            </div>
+                        </div>
+                        <div class="fiyat-alt-yazi">'den başlayan fiyatlarla I prices starting from</div>
+                    </div>
+                    
+                    <!-- Placeholder Template -->
+                    <div id="template-placeholder" class="print-template hidden" style="display:flex; align-items:center; justify-content:center; height: 100%; color: #aaa; text-align: center; font-size: 1.2rem;">
+                        (Diğer şablonlar buraya eklenecek)
+                    </div>
+
                 </div>
             </div>
         </div>

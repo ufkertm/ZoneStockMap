@@ -1374,3 +1374,110 @@ function updateDashboard() {
 }
 
 window.onload = init;
+
+// --- NEW MODULES LOGIC ---
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const loginOverlay = document.getElementById('login-overlay');
+    const loginUsername = document.getElementById('login-username');
+    const loginPassword = document.getElementById('login-password');
+    const loginBtn = document.getElementById('login-btn');
+    const loginError = document.getElementById('login-error');
+
+    const hubScreen = document.getElementById('hub-screen');
+    const hubStockBtn = document.getElementById('hub-stock-btn');
+    const hubPrintBtn = document.getElementById('hub-print-btn');
+
+    const page1 = document.getElementById('page1');
+    const printSection = document.getElementById('print-section');
+    const backToHubStockBtn = document.getElementById('back-to-hub-stock-btn');
+    const backToHubPrintBtn = document.getElementById('back-to-hub-print-btn');
+
+    // Login Logic
+    if(loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            if (loginUsername.value === 'kiyakabi' && loginPassword.value === '123') {
+                loginOverlay.classList.add('hidden');
+                hubScreen.classList.remove('hidden');
+            } else {
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        // Enter key for login
+        loginPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loginBtn.click();
+        });
+    }
+
+    // Hub Navigation
+    if(hubStockBtn) {
+        hubStockBtn.addEventListener('click', () => {
+            hubScreen.classList.add('hidden');
+            page1.classList.remove('hidden');
+            page1.classList.add('active'); // To ensure any css relying on it works
+        });
+
+        hubPrintBtn.addEventListener('click', () => {
+            hubScreen.classList.add('hidden');
+            printSection.classList.remove('hidden');
+        });
+
+        backToHubStockBtn.addEventListener('click', () => {
+            page1.classList.add('hidden');
+            page1.classList.remove('active');
+            hubScreen.classList.remove('hidden');
+        });
+
+        backToHubPrintBtn.addEventListener('click', () => {
+            printSection.classList.add('hidden');
+            hubScreen.classList.remove('hidden');
+        });
+    }
+
+    // Print Module Logic
+    const templateSelect = document.getElementById('template-select');
+    const priceInput = document.getElementById('price-input');
+    const previewTam = document.getElementById('preview-tam');
+    const previewKurus = document.getElementById('preview-kurus');
+    const printBtn = document.getElementById('print-btn');
+    
+    const templateFiyatlik = document.getElementById('template-fiyatlik');
+    const templatePlaceholder = document.getElementById('template-placeholder');
+    const fiyatlikForm = document.getElementById('fiyatlik-form');
+
+    if(templateSelect) {
+        templateSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'fiyatlik') {
+                templateFiyatlik.classList.remove('hidden');
+                templatePlaceholder.classList.add('hidden');
+                fiyatlikForm.style.display = 'block';
+            } else {
+                templateFiyatlik.classList.add('hidden');
+                templatePlaceholder.classList.remove('hidden');
+                fiyatlikForm.style.display = 'none';
+            }
+        });
+
+        priceInput.addEventListener('input', (e) => {
+            let val = e.target.value.replace(',', '.');
+            let parts = val.split('.');
+            
+            let tam = parts[0] || '0';
+            let kurus = parts[1] ? ',' + parts[1].substring(0, 2) : ',00';
+            
+            // If input is empty, revert to default
+            if (e.target.value.trim() === '') {
+                tam = '129';
+                kurus = ',99';
+            }
+
+            previewTam.textContent = tam;
+            previewKurus.textContent = kurus;
+        });
+
+        printBtn.addEventListener('click', () => {
+            window.print();
+        });
+    }
+});
